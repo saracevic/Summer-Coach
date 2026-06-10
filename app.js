@@ -1,16 +1,13 @@
-// Global Variables
+// ===== GLOBAL VARIABLES =====
 let questions = [];
 let currentQuestionIndex = 0;
 let userAnswers = {};
 let hintUsed = {};
 
-// Initialize
-window.addEventListener('DOMContentLoaded', () => {
-    console.log('Summer Coach loaded successfully!');
-});
+console.log('✅ app.js loaded successfully!');
 
-// Handle File Upload
-async function handleFileUpload() {
+// ===== FILE UPLOAD HANDLER =====
+function handleFileUpload() {
     const fileInput = document.getElementById('fileInput');
     const file = fileInput.files[0];
 
@@ -20,17 +17,18 @@ async function handleFileUpload() {
     }
 
     if (file.type === 'application/pdf') {
-        await extractQuestionsFromPDF(file);
+        extractQuestionsFromPDF(file);
     } else if (file.type === 'application/json') {
-        await loadQuestionsFromJSON(file);
+        loadQuestionsFromJSON(file);
     } else {
         alert('Lütfen PDF veya JSON dosyası seçin!');
     }
 }
 
-// Extract Questions from PDF - ADVANCED VERSION
+// ===== EXTRACT QUESTIONS FROM PDF =====
 async function extractQuestionsFromPDF(file) {
     try {
+        console.log('Starting PDF extraction...');
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
         let pdfText = '';
@@ -41,210 +39,104 @@ async function extractQuestionsFromPDF(file) {
             pdfText += textContent.items.map(item => item.str).join(' ') + '\n';
         }
 
-        console.log('=== PDF TEXT EXTRACTED ===');
-        console.log('Total text length:', pdfText.length);
-        console.log('First 1000 chars:', pdfText.substring(0, 1000));
-        console.log('========================');
-
-        // Try multiple parsing strategies
-        questions = parseQuestionsAdvanced(pdfText);
+        console.log('PDF text extracted. Length:', pdfText.length);
+        questions = parsePDFText(pdfText);
         
-        if (questions.length === 0) {
-            console.warn('No questions found with standard parsing. Trying alternative methods...');
-            // Try finding any numbered patterns
-            questions = parseQuestionsGeneric(pdfText);
-        }
-        
-        if (questions.length === 0) {
-            alert('❌ PDF\'den sorular çıkarılamadı.\n\n' +
-                  'LÜTFEN PDF\'nin şu formatta olduğundan emin olun:\n\n' +
-                  '1. Soru metni burada olur...\n' +
-                  'A) Seçenek A\n' +
-                  'B) Seçenek B\n' +
-                  'C) Seçenek C\n' +
-                  'D) Seçenek D\n' +
-                  'Cevap: A\n\n' +
-                  '2. Sonraki soru...\n\n' +
-                  'Konsolda PDF metnini kontrol edin (F12)');
-            console.error('Full extracted text:', pdfText);
-        } else {
-            console.log(`✅ ${questions.length} soru başarıyla çıkartıldı!`);
+        if (questions.length > 0) {
+            console.log('✅ ' + questions.length + ' soru bulundu!');
             startQuiz();
+        } else {
+            console.log('❌ Sorular bulunamadı. Demo soruları yükleniyor...');
+            alert('PDF\'den sorular çıkarılamadı. Demo soruları yükleniyor...');
+            loadDemoQuestions();
         }
     } catch (error) {
-        console.error('PDF okuma hatası:', error);
-        alert('PDF dosyası okunamadı: ' + error.message);
+        console.error('PDF error:', error);
+        alert('PDF hatası: ' + error.message);
+        loadDemoQuestions();
     }
 }
 
-// Advanced Question Parser
-function parseQuestionsAdvanced(text) {
+// ===== PARSE PDF TEXT =====
+function parsePDFText(text) {
     const questions = [];
-    
-    // Normalize text
-    text = text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
-    
-    // Split by common question starters
-    let parts = text.split(/\n+/);
-    parts = parts.map(p => p.trim()).filter(p => p.length > 0);
-    
-    console.log('Total lines after split:', parts.length);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
     let currentQuestion = null;
-    let lineIndex = 0;
+    let qNum = 1;
     
-    while (lineIndex < parts.length) {
-        const line = parts[lineIndex];
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         
-        // Detect question start: "1.", "1)", "1 .", etc
-        const questionMatch = line.match(/^(\d+)\s*[.)]\s+(.+)/);
-        
-        if (questionMatch) {
-            // Save previous question if valid
-            if (currentQuestion && isValidQuestion(currentQuestion)) {
+        // Detect question: "1.", "2." etc
+        if (line.match(/^\d+[.)]/)) {
+            // Save previous question
+            if (currentQuestion && currentQuestion.options.length === 4) {
                 questions.push(currentQuestion);
             }
             
+            // Create new question
+            const qMatch = line.match(/^\d+[.)]\s+(.+)/);
             currentQuestion = {
-                id: questions.length + 1,
-                text: questionMatch[2].trim(),
+                id: qNum++,
+                text: qMatch ? qMatch[1] : line,
                 options: [],
-                correctAnswer: null,
+                correctAnswer: 'A',
                 topic: 'Matematik',
                 explanation: 'Çözüm için AI ipucunu kullan.'
             };
-            
-            lineIndex++;
-            
-            // Collect next lines as options or cevap
-            while (lineIndex < parts.length) {
-                const nextLine = parts[lineIndex];
-                
-                // Check if it's an option: "A)", "a)", "A.", etc
-                if (nextLine.match(/^[A-Da-d][.)]\s+.+/)) {
-                    const optMatch = nextLine.match(/^([A-Da-d])[.)]\s+(.+)/);
-                    if (optMatch) {
-                        currentQuestion.options.push({
-                            letter: optMatch[1].toUpperCase(),
-                            text: optMatch[2].trim()
-                        });
-                    }
-                    lineIndex++;
-                } 
-                // Check if it's an answer: "Cevap:", "Doğru:", "Answer:"
-                else if (nextLine.match(/^(cevap|doğru|answer|correct)[\s:]/i)) {
-                    const ansMatch = nextLine.match(/[A-D]/i);
-                    if (ansMatch) {
-                        currentQuestion.correctAnswer = ansMatch[0].toUpperCase();
-                    }
-                    lineIndex++;
-                    break; // Move to next question
-                }
-                // Check if next line is a new question
-                else if (nextLine.match(/^\d+\s*[.)]/)) {
-                    break;
-                }
-                // Skip empty or irrelevant lines
-                else if (nextLine.length < 3 || nextLine.match(/^[\s\-=]+$/)) {
-                    lineIndex++;
-                } 
-                // Otherwise accumulate to question text if no options yet
-                else if (currentQuestion.options.length === 0) {
-                    currentQuestion.text += ' ' + nextLine;
-                    lineIndex++;
-                }
-                else {
-                    break;
-                }
+        }
+        // Detect option: "A)", "B)" etc
+        else if (currentQuestion && line.match(/^[A-D][.)]\s+/)) {
+            const optMatch = line.match(/^([A-D])[.)]\s+(.+)/);
+            if (optMatch) {
+                currentQuestion.options.push({
+                    letter: optMatch[1],
+                    text: optMatch[2]
+                });
             }
-        } else {
-            lineIndex++;
+        }
+        // Detect answer: "Cevap:" etc
+        else if (currentQuestion && (line.toLowerCase().includes('cevap') || line.toLowerCase().includes('doğru'))) {
+            const ansMatch = line.match(/[A-D]/);
+            if (ansMatch) {
+                currentQuestion.correctAnswer = ansMatch[0];
+            }
         }
     }
     
     // Save last question
-    if (currentQuestion && isValidQuestion(currentQuestion)) {
+    if (currentQuestion && currentQuestion.options.length === 4) {
         questions.push(currentQuestion);
     }
     
-    console.log(`Advanced parser found: ${questions.length} questions`);
     return questions;
 }
 
-// Generic Parser (finds any numbered items with A, B, C, D)
-function parseQuestionsGeneric(text) {
-    const questions = [];
-    
-    // Find all sections that start with numbers
-    const numberPattern = /(\d+)\s*[.)]\s+([^]*?)(?=\d+\s*[.)]\s+|$)/g;
-    let match;
-    let questionNumber = 1;
-    
-    while ((match = numberPattern.exec(text)) !== null) {
-        const content = match[2].trim();
-        const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        
-        if (lines.length >= 4) {
-            const question = {
-                id: questionNumber++,
-                text: lines[0],
-                options: [],
-                correctAnswer: 'A',
-                topic: 'Test Sorusu',
-                explanation: 'Çözüm için AI ipucunu kullan.'
-            };
-            
-            // Extract options
-            for (let i = 1; i < lines.length; i++) {
-                const optMatch = lines[i].match(/^([A-D])[.)]\s+(.+)/i);
-                if (optMatch) {
-                    question.options.push({
-                        letter: optMatch[1].toUpperCase(),
-                        text: optMatch[2]
-                    });
-                }
-            }
-            
-            if (question.options.length === 4) {
-                questions.push(question);
-            }
-        }
-    }
-    
-    console.log(`Generic parser found: ${questions.length} questions`);
-    return questions;
-}
-
-// Validate question
-function isValidQuestion(q) {
-    return q.text && 
-           q.text.trim().length > 5 && 
-           q.options && 
-           q.options.length === 4 &&
-           q.correctAnswer && 
-           ['A', 'B', 'C', 'D'].includes(q.correctAnswer);
-}
-
-// Load Questions from JSON
+// ===== LOAD JSON =====
 async function loadQuestionsFromJSON(file) {
     try {
         const text = await file.text();
         questions = JSON.parse(text);
         
-        // Validate JSON format
-        if (!Array.isArray(questions) || questions.length === 0) {
-            throw new Error('JSON formatı geçersiz');
+        if (Array.isArray(questions) && questions.length > 0) {
+            console.log('✅ ' + questions.length + ' soru JSON\'dan yüklendi!');
+            startQuiz();
+        } else {
+            alert('JSON formatı geçersiz!');
+            loadDemoQuestions();
         }
-
-        startQuiz();
     } catch (error) {
-        console.error('JSON okuma hatası:', error);
-        alert('JSON dosyası okunamadı: ' + error.message);
+        console.error('JSON error:', error);
+        alert('JSON hatası: ' + error.message);
+        loadDemoQuestions();
     }
 }
 
-// Load Demo Questions
+// ===== LOAD DEMO QUESTIONS =====
 function loadDemoQuestions() {
+    console.log('Loading demo questions...');
+    
     questions = [
         {
             id: 1,
@@ -269,8 +161,8 @@ function loadDemoQuestions() {
                 { letter: 'D', text: 'Bursa' }
             ],
             correctAnswer: 'B',
-            topic: 'Coğrafya - Türkiye'nin Başkenti',
-            explanation: 'Ankara, 1923 yılından beri Türkiye'nin başkenti olarak görev yapmaktadır.'
+            topic: 'Coğrafya',
+            explanation: 'Ankara 1923\'ten beri Türkiye\'nin başkenti.'
         },
         {
             id: 3,
@@ -282,8 +174,8 @@ function loadDemoQuestions() {
                 { letter: 'D', text: '9' }
             ],
             correctAnswer: 'A',
-            topic: 'Matematik - İşlem Sırası (BODMAS)',
-            explanation: 'İşlem sırasına göre önce çarpma yapılır: 2 + (2×3) = 2 + 6 = 8'
+            topic: 'Matematik - İşlem Sırası',
+            explanation: 'Önce çarpma: 2 + (2×3) = 2 + 6 = 8'
         },
         {
             id: 4,
@@ -296,11 +188,11 @@ function loadDemoQuestions() {
             ],
             correctAnswer: 'A',
             topic: 'Geometri - Daire Alanı',
-            explanation: 'Dairenin alanı = π × r². Alan = 3.14 × 7² = 3.14 × 49 = 153.86 cm²'
+            explanation: 'Alan = π × r² = 3.14 × 49 = 153.86 cm²'
         },
         {
             id: 5,
-            text: "Osmanlı İmparatorluğu kaç yılında kurulmuştur?",
+            text: "Osmanlı İmparatorluğu hangi yıl kurulmuştur?",
             options: [
                 { letter: 'A', text: '1299' },
                 { letter: 'B', text: '1453' },
@@ -308,17 +200,19 @@ function loadDemoQuestions() {
                 { letter: 'D', text: '1923' }
             ],
             correctAnswer: 'A',
-            topic: 'Tarih - Osmanlı İmparatorluğu',
-            explanation: 'Osmanlı İmparatorluğu 1299 yılında Osman Bey tarafından kurulmuştur.'
+            topic: 'Tarih',
+            explanation: 'Osmanlı İmparatorluğu 1299\'da Osman Bey tarafından kurulmuştur.'
         }
     ];
 
+    console.log('✅ Demo soruları yüklendi!');
     startQuiz();
 }
 
-// Start Quiz
+// ===== START QUIZ =====
 function startQuiz() {
-    // Initialize answers and hints
+    console.log('Quiz starting with ' + questions.length + ' questions');
+    
     userAnswers = {};
     hintUsed = {};
     currentQuestionIndex = 0;
@@ -328,111 +222,71 @@ function startQuiz() {
         hintUsed[q.id] = false;
     });
 
-    // Hide upload section and show quiz section
     document.getElementById('uploadSection').style.display = 'none';
     document.getElementById('quizSection').style.display = 'block';
     document.getElementById('resultsSection').style.display = 'none';
-
-    // Update total questions
     document.getElementById('totalQuestions').textContent = questions.length;
 
-    // Display first question
     displayQuestion();
 }
 
-// Display Current Question
+// ===== DISPLAY QUESTION =====
 function displayQuestion() {
+    if (questions.length === 0) return;
+    
     const question = questions[currentQuestionIndex];
-    const questionNumber = currentQuestionIndex + 1;
+    const qNum = currentQuestionIndex + 1;
 
-    // Update counter and progress
-    document.getElementById('currentQuestion').textContent = questionNumber;
-    const progress = (currentQuestionIndex / questions.length) * 100;
-    document.getElementById('progressFill').style.width = progress + '%';
+    document.getElementById('currentQuestion').textContent = qNum;
+    document.getElementById('progressFill').style.width = (currentQuestionIndex / questions.length * 100) + '%';
+    document.getElementById('questionText').textContent = qNum + '. ' + question.text;
 
-    // Update question text
-    document.getElementById('questionText').textContent = `${questionNumber}. ${question.text}`;
+    const container = document.getElementById('optionsContainer');
+    container.innerHTML = '';
 
-    // Update options
-    const optionsContainer = document.getElementById('optionsContainer');
-    optionsContainer.innerHTML = '';
-
-    question.options.forEach(option => {
-        const optionEl = document.createElement('div');
-        optionEl.className = 'option';
-        optionEl.innerHTML = `
-            <div class="option-letter">${option.letter}</div>
-            <div>${option.text}</div>
-        `;
-
-        if (userAnswers[question.id] === option.letter) {
-            optionEl.classList.add('selected');
+    question.options.forEach(opt => {
+        const div = document.createElement('div');
+        div.className = 'option';
+        if (userAnswers[question.id] === opt.letter) {
+            div.classList.add('selected');
         }
-
-        optionEl.onclick = () => selectAnswer(option.letter);
-        optionsContainer.appendChild(optionEl);
+        div.innerHTML = '<div class="option-letter">' + opt.letter + '</div><div>' + opt.text + '</div>';
+        div.onclick = () => selectAnswer(opt.letter);
+        container.appendChild(div);
     });
 
-    // Clear hint
     document.getElementById('hintBox').style.display = 'none';
-    document.getElementById('hintText').textContent = '';
-
-    // Update navigation buttons
     document.getElementById('prevBtn').disabled = currentQuestionIndex === 0;
     document.getElementById('nextBtn').textContent = 
         currentQuestionIndex === questions.length - 1 ? 'Sonuçları Gör' : 'Sonraki →';
-
-    // Update answer summary
-    updateAnswerSummary();
+    
+    const answered = Object.values(userAnswers).filter(a => a !== null).length;
+    document.getElementById('answerSummary').textContent = 'Cevaplanan: ' + answered + ' / ' + questions.length;
 }
 
-// Select Answer
+// ===== SELECT ANSWER =====
 function selectAnswer(letter) {
     const question = questions[currentQuestionIndex];
     userAnswers[question.id] = letter;
     
-    // Visual feedback
     const options = document.querySelectorAll('.option');
     options.forEach(opt => {
-        opt.classList.remove('selected');
-        if (opt.querySelector('.option-letter').textContent === letter) {
+        opt.classList.remove('selected', 'correct', 'wrong');
+        const optLetter = opt.querySelector('.option-letter').textContent;
+        
+        if (letter === optLetter) {
             opt.classList.add('selected');
         }
-    });
-
-    // Show immediate feedback
-    setTimeout(() => {
-        showAnswerFeedback();
-    }, 300);
-}
-
-// Show Answer Feedback
-function showAnswerFeedback() {
-    const question = questions[currentQuestionIndex];
-    const userAnswer = userAnswers[question.id];
-    const correctAnswer = question.correctAnswer;
-    const options = document.querySelectorAll('.option');
-
-    options.forEach(opt => {
-        const letter = opt.querySelector('.option-letter').textContent;
-        
-        if (letter === correctAnswer) {
+        if (optLetter === question.correctAnswer) {
             opt.classList.add('correct');
         }
-        if (letter === userAnswer && userAnswer !== correctAnswer) {
+        if (letter === optLetter && letter !== question.correctAnswer) {
             opt.classList.add('wrong');
         }
     });
 }
 
-// Update Answer Summary
-function updateAnswerSummary() {
-    const answeredCount = Object.values(userAnswers).filter(a => a !== null).length;
-    const summary = document.getElementById('answerSummary');
-    summary.textContent = `Cevaplanan: ${answeredCount} / ${questions.length}`;
-}
-
-// Get AI Hint
+// ===== GET HINT =====
 function getHint() {
     const question = questions[currentQuestionIndex];
     
@@ -444,15 +298,12 @@ function getHint() {
     hintUsed[question.id] = true;
     const hint = generateAIHint(question);
     
-    const hintBox = document.getElementById('hintBox');
-    const hintText = document.getElementById('hintText');
-    
-    hintText.textContent = hint;
-    hintBox.style.display = 'block';
-    hintBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('hintText').textContent = hint;
+    document.getElementById('hintBox').style.display = 'block';
+    document.getElementById('hintBox').scrollIntoView({ behavior: 'smooth' });
 }
 
-// Navigate Questions
+// ===== NAVIGATION =====
 function previousQuestion() {
     if (currentQuestionIndex > 0) {
         currentQuestionIndex--;
@@ -467,54 +318,47 @@ function nextQuestion() {
         displayQuestion();
         window.scrollTo(0, 0);
     } else {
-        // Show results
         showResults();
     }
 }
 
-// Show Results
+// ===== SHOW RESULTS =====
 function showResults() {
-    const correctCount = Object.keys(userAnswers).filter(qId => {
-        const question = questions.find(q => q.id == qId);
-        return question && userAnswers[qId] === question.correctAnswer;
+    const correct = Object.keys(userAnswers).filter(qId => {
+        const q = questions.find(x => x.id == qId);
+        return q && userAnswers[qId] === q.correctAnswer;
     }).length;
 
-    const wrongCount = questions.length - correctCount;
-    const scorePercentage = Math.round((correctCount / questions.length) * 100);
+    const wrong = questions.length - correct;
+    const percent = Math.round(correct / questions.length * 100);
 
-    // Update results display
-    document.getElementById('correctCount').textContent = correctCount;
-    document.getElementById('wrongCount').textContent = wrongCount;
+    document.getElementById('correctCount').textContent = correct;
+    document.getElementById('wrongCount').textContent = wrong;
     document.getElementById('totalCount').textContent = questions.length;
-    document.getElementById('scorePercentage').textContent = scorePercentage;
+    document.getElementById('scorePercentage').textContent = percent;
 
-    // Build review
-    const reviewHTML = questions.map(question => {
-        const userAnswer = userAnswers[question.id];
-        const isCorrect = userAnswer === question.correctAnswer;
-        const userAnswerText = question.options.find(o => o.letter === userAnswer)?.text || 'Cevap yok';
-        const correctAnswerText = question.options.find(o => o.letter === question.correctAnswer)?.text || '';
+    let reviewHTML = '';
+    questions.forEach(q => {
+        const userAns = userAnswers[q.id];
+        const isCorrect = userAns === q.correctAnswer;
+        const userText = q.options.find(o => o.letter === userAns)?.text || 'Cevap yok';
+        const correctText = q.options.find(o => o.letter === q.correctAnswer)?.text || '';
 
-        return `
-            <div class="review-item ${isCorrect ? 'correct' : 'wrong'}">
-                <strong>${question.id}. ${question.text}</strong>
-                <p><strong>Senin cevabın:</strong> ${userAnswer ? userAnswer + ') ' + userAnswerText : 'Boş'}</p>
-                ${!isCorrect ? `<p><strong>Doğru cevap:</strong> ${question.correctAnswer}) ${correctAnswerText}</p>` : ''}
-                <p><strong>Konu:</strong> ${question.topic}</p>
-                <p><strong>Açıklama:</strong> ${question.explanation}</p>
-            </div>
-        `;
-    }).join('');
+        reviewHTML += '<div class="review-item ' + (isCorrect ? 'correct' : 'wrong') + '">' +
+            '<strong>' + q.id + '. ' + q.text + '</strong>' +
+            '<p><strong>Senin cevabın:</strong> ' + (userAns ? userAns + ') ' + userText : 'Boş') + '</p>' +
+            (isCorrect ? '' : '<p><strong>Doğru cevap:</strong> ' + q.correctAnswer + ') ' + correctText + '</p>') +
+            '<p><strong>Konu:</strong> ' + q.topic + '</p>' +
+            '</div>';
+    });
 
     document.getElementById('resultsReview').innerHTML = reviewHTML;
-
-    // Show results section
     document.getElementById('quizSection').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'block';
     window.scrollTo(0, 0);
 }
 
-// Restart Quiz
+// ===== RESTART =====
 function restartQuiz() {
     document.getElementById('uploadSection').style.display = 'block';
     document.getElementById('quizSection').style.display = 'none';
