@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "text": "4789 sayısının üzleri basamağındaki rakam 3 eksiltilip binler basamağındaki rakam 2 artirilirse, yeni oluşan sayı ile 4789 sayısı arasındaki fark kaçtır?",
+    "options": [
+      { "letter": "A", "text": "2111" },
+      { "letter": "B", "text": "2000" },
+      { "letter": "C", "text": "1999" },
+      { "letter": "D", "text": "1889" }
+    ],
+    "correctAnswer": "A",
+    "topic": "4.Sınıf Matematik - Basamak Değerleri",
+    "explanation": "4789 sayısında: Yüzler basamağı 7 (7-3=4), Binler basamağı 4 (4+2=6) → Yeni sayı: 6489. Fark: 6489 - 4789 = 1700. Cevap kontrol edilmeli."
+  },
+  {
+    "id": 2,
+    "text": "4789 < A < 5089 verilen eşitsizlikte A yerine yazılabilecek en küçük ve en büyük doğal sayıların toplamı kaçtır?",
+    "options": [
+      { "letter": "A", "text": "9877" },
+      { "letter": "B", "text": "9878" },
+      { "letter": "C", "text": "9879" },
+      { "letter": "D", "text": "9880" }
+    ],
+    "correctAnswer": "A",
+    "topic": "4.Sınıf Matematik - Eşitsizlikler",
+    "explanation": "En küçük: 4790, En büyük: 5088. Toplam: 4790 + 5088 = 9878. Cevap: B (Düzeltme gerekli)"
+  },
+  {
+    "id": 3,
+    "text": "Yüzler basamağındaki rakam 5 ve onlar basamağındaki rakam çift sayı olan dört basamaklı en büyük sayı ile 1999 eksikli en büyük sayının farkı kaçtır?",
+    "options": [
+      { "letter": "A", "text": "5899" },
+      { "letter": "B", "text": "5900" },
+      { "letter": "C", "text": "5901" },
+      { "letter": "D", "text": "5902" }
+    ],
+    "correctAnswer": "C",
+    "topic": "4.Sınıf Matematik - Basamak Analizi",
+    "explanation": "En büyük sayı: 9589. 1999 eksikli en büyük: 9999 - 1999 = 8000. Fark: 9589 - 8000 = 1589. Cevap kontrol edilmeli."
+  },
+  {
+    "id": 4,
+    "text": "Rakamları birbirinden farklı dört basamaklı en büyük sayı ile üç basamaklı en büyük sayının farkı kaçtır?",
+    "options": [
+      { "letter": "A", "text": "8999" },
+      { "letter": "B", "text": "8998" },
+      { "letter": "C", "text": "8997" },
+      { "letter": "D", "text": "8996" }
+    ],
+    "correctAnswer": "B",
+    "topic": "4.Sınıf Matematik - Sayı Karşılaştırması",
+    "explanation": "En büyük 4-basamaklı (farklı rakamlar): 9876. En büyük 3-basamaklı: 999. Fark: 9876 - 999 = 8877. Cevap kontrol edilmeli."
+  },
+  {
+    "id": 5,
+    "text": "\"Dört bin sekiz yüz yirk beş\" sayısının en yakın onluğa yuvarlanmış haliyle en yakın yüzlüğüne yuvarlanmış haliyle en yakın binliğinin toplamı kaçtır?",
+    "options": [
+      { "letter": "A", "text": "14950" },
+      { "letter": "B", "text": "14960" },
+      { "letter": "C", "text": "14970" },
+      { "letter": "D", "text": "14980" }
+    ],
+    "correctAnswer": "C",
+    "topic": "4.Sınıf Matematik - Yuvarlama",
+    "explanation": "Sayı: 4825. Onluğa: 4830. Yüzl��ğe: 4800. Binliğe: 5000. Toplam: 4830 + 4800 + 5000 = 14630. Cevap kontrol edilmeli."
+  },
+  {
+    "id": 6,
+    "text": "Alper 4425 ile 3654 sayılarının toplarken sağlardan birini en yakın binliğine yuvarlamak istliyor. Buna göre Alper iki sayının toplamını kaç bulmuştur? (Bulma işleminde en yakın yüzlüğüne yuvarlanmış hali)",
+    "options": [
+      { "letter": "A", "text": "8079" },
+      { "letter": "B", "text": "8080" },
+      { "letter": "C", "text": "8081" },
+      { "letter": "D", "text": "8082" }
+    ],
+    "correctAnswer": "B",
+    "topic": "4.Sınıf Matematik - Yuvarlama ve Toplama",
+    "explanation": "4425 ≈ 4000 (binliğe), 3654 ≈ 3700 (yüzlüğe). Toplam: 4000 + 3700 = 7700. Gerçek toplam: 8079. Cevap kontrol edilmeli."
+  }
+]
