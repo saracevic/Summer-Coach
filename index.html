@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summer Coach - Yaz Tatili Koçu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>☀️ Summer Coach - Yaz Tatili Koçu</h1>
+            <p>AI Destekli Akıllı Eğitim Sistemi</p>
+        </header>
+
+        <!-- File Upload Section -->
+        <section class="upload-section" id="uploadSection">
+            <div class="upload-box">
+                <h2>📚 Ders Soru Bankası Yükle</h2>
+                <p>PDF veya JSON formatında soru dosyası seçin</p>
+                <input type="file" id="fileInput" accept=".pdf,.json" class="file-input">
+                <button onclick="handleFileUpload()" class="btn btn-primary">Dosyayı Yükle</button>
+                
+                <!-- Demo Button -->
+                <div class="demo-section">
+                    <p>veya</p>
+                    <button onclick="loadDemoQuestions()" class="btn btn-secondary">Demo Soruları Yükle</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quiz Section -->
+        <section class="quiz-section" id="quizSection" style="display: none;">
+            <div class="quiz-container">
+                <!-- Question Counter -->
+                <div class="question-counter">
+                    <div class="counter-item">
+                        <span id="currentQuestion">1</span> / <span id="totalQuestions">0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <!-- Question Display -->
+                <div class="question-display">
+                    <h2 id="questionText" class="question-text"></h2>
+                </div>
+
+                <!-- Options -->
+                <div class="options-container" id="optionsContainer"></div>
+
+                <!-- Hint Section -->
+                <div class="hint-section">
+                    <button onclick="getHint()" class="btn btn-hint">💡 İpucu Al (AI Koç)</button>
+                    <div class="hint-box" id="hintBox" style="display: none;">
+                        <h4>📖 Rehberlik:</h4>
+                        <p id="hintText"></p>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <div class="navigation">
+                    <button onclick="previousQuestion()" class="btn btn-nav" id="prevBtn">← Önceki</button>
+                    <button onclick="nextQuestion()" class="btn btn-nav" id="nextBtn">Sonraki →</button>
+                </div>
+
+                <!-- Answer Summary -->
+                <div class="answer-summary" id="answerSummary"></div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-container">
+                <h2>🎉 Tebrikler! Testi Tamamladınız</h2>
+                <div class="score-display">
+                    <div class="score-circle">
+                        <span id="scorePercentage">0</span>%
+                    </div>
+                </div>
+                <div class="score-details">
+                    <p>Doğru Cevaplar: <strong id="correctCount">0</strong></p>
+                    <p>Yanlış Cevaplar: <strong id="wrongCount">0</strong></p>
+                    <p>Toplam Soru: <strong id="totalCount">0</strong></p>
+                </div>
+                <div class="results-review" id="resultsReview"></div>
+                <button onclick="restartQuiz()" class="btn btn-primary">Baştan Başla</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="ai-coach.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
