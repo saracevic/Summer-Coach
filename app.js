@@ -28,7 +28,7 @@ async function handleFileUpload() {
     }
 }
 
-// Extract Questions from PDF
+// Extract Questions from PDF - ADVANCED VERSION
 async function extractQuestionsFromPDF(file) {
     try {
         const arrayBuffer = await file.arrayBuffer();
@@ -41,12 +41,34 @@ async function extractQuestionsFromPDF(file) {
             pdfText += textContent.items.map(item => item.str).join(' ') + '\n';
         }
 
-        questions = parsePDFText(pdfText);
+        console.log('=== PDF TEXT EXTRACTED ===');
+        console.log('Total text length:', pdfText.length);
+        console.log('First 1000 chars:', pdfText.substring(0, 1000));
+        console.log('========================');
+
+        // Try multiple parsing strategies
+        questions = parseQuestionsAdvanced(pdfText);
         
         if (questions.length === 0) {
-            alert(`PDF'den sorular çıkarılamadı. Format kontrol edin.\n\nBeklenen Format:\n1.Soru metni\nA) Seçenek\nB) Seçenek\nC) Seçenek\nD) Seçenek\nCevap: A`);
-            console.log('Extracted text sample:', pdfText.substring(0, 500));
+            console.warn('No questions found with standard parsing. Trying alternative methods...');
+            // Try finding any numbered patterns
+            questions = parseQuestionsGeneric(pdfText);
+        }
+        
+        if (questions.length === 0) {
+            alert('❌ PDF\'den sorular çıkarılamadı.\n\n' +
+                  'LÜTFEN PDF\'nin şu formatta olduğundan emin olun:\n\n' +
+                  '1. Soru metni burada olur...\n' +
+                  'A) Seçenek A\n' +
+                  'B) Seçenek B\n' +
+                  'C) Seçenek C\n' +
+                  'D) Seçenek D\n' +
+                  'Cevap: A\n\n' +
+                  '2. Sonraki soru...\n\n' +
+                  'Konsolda PDF metnini kontrol edin (F12)');
+            console.error('Full extracted text:', pdfText);
         } else {
+            console.log(`✅ ${questions.length} soru başarıyla çıkartıldı!`);
             startQuiz();
         }
     } catch (error) {
@@ -55,84 +77,152 @@ async function extractQuestionsFromPDF(file) {
     }
 }
 
-// Parse PDF Text to Questions - IMPROVED VERSION
-function parsePDFText(text) {
+// Advanced Question Parser
+function parseQuestionsAdvanced(text) {
     const questions = [];
     
-    // Temizle ve satırları ayır
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    // Normalize text
+    text = text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ');
+    
+    // Split by common question starters
+    let parts = text.split(/\n+/);
+    parts = parts.map(p => p.trim()).filter(p => p.length > 0);
+    
+    console.log('Total lines after split:', parts.length);
     
     let currentQuestion = null;
-    let questionCounter = 0;
+    let lineIndex = 0;
     
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+    while (lineIndex < parts.length) {
+        const line = parts[lineIndex];
         
-        // Soru başlangıcını tespit et: "1.", "7.", "10." vb
-        const questionMatch = line.match(/^(\d+)[.)]\s+(.+)/);
+        // Detect question start: "1.", "1)", "1 .", etc
+        const questionMatch = line.match(/^(\d+)\s*[.)]\s+(.+)/);
         
         if (questionMatch) {
-            // Eğer önceki soru varsa ve 4 seçeneği varsa, kaydet
-            if (currentQuestion && currentQuestion.options && currentQuestion.options.length === 4) {
+            // Save previous question if valid
+            if (currentQuestion && isValidQuestion(currentQuestion)) {
                 questions.push(currentQuestion);
             }
             
-            questionCounter++;
             currentQuestion = {
-                id: questionCounter,
+                id: questions.length + 1,
                 text: questionMatch[2].trim(),
                 options: [],
-                correctAnswer: 'A',
+                correctAnswer: null,
                 topic: 'Matematik',
                 explanation: 'Çözüm için AI ipucunu kullan.'
             };
-        }
-        // Seçenek tespit et: "A)", "A)", "a)" vb
-        else if (currentQuestion && line.match(/^[A-Da-d][.)]\s+(.+)/)) {
-            const optionMatch = line.match(/^([A-Da-d])[.)]\s+(.+)/);
-            if (optionMatch) {
-                const letter = optionMatch[1].toUpperCase();
-                const text = optionMatch[2].trim();
+            
+            lineIndex++;
+            
+            // Collect next lines as options or cevap
+            while (lineIndex < parts.length) {
+                const nextLine = parts[lineIndex];
                 
-                currentQuestion.options.push({
-                    letter: letter,
-                    text: text
-                });
+                // Check if it's an option: "A)", "a)", "A.", etc
+                if (nextLine.match(/^[A-Da-d][.)]\s+.+/)) {
+                    const optMatch = nextLine.match(/^([A-Da-d])[.)]\s+(.+)/);
+                    if (optMatch) {
+                        currentQuestion.options.push({
+                            letter: optMatch[1].toUpperCase(),
+                            text: optMatch[2].trim()
+                        });
+                    }
+                    lineIndex++;
+                } 
+                // Check if it's an answer: "Cevap:", "Doğru:", "Answer:"
+                else if (nextLine.match(/^(cevap|doğru|answer|correct)[\s:]/i)) {
+                    const ansMatch = nextLine.match(/[A-D]/i);
+                    if (ansMatch) {
+                        currentQuestion.correctAnswer = ansMatch[0].toUpperCase();
+                    }
+                    lineIndex++;
+                    break; // Move to next question
+                }
+                // Check if next line is a new question
+                else if (nextLine.match(/^\d+\s*[.)]/)) {
+                    break;
+                }
+                // Skip empty or irrelevant lines
+                else if (nextLine.length < 3 || nextLine.match(/^[\s\-=]+$/)) {
+                    lineIndex++;
+                } 
+                // Otherwise accumulate to question text if no options yet
+                else if (currentQuestion.options.length === 0) {
+                    currentQuestion.text += ' ' + nextLine;
+                    lineIndex++;
+                }
+                else {
+                    break;
+                }
             }
-        }
-        // Cevap tespit et: "Cevap: A", "Doğru: C" vb
-        else if (currentQuestion && (line.toLowerCase().includes('cevap') || line.toLowerCase().includes('doğru') || line.toLowerCase().includes('answer'))) {
-            const answerMatch = line.match(/[A-D]/i);
-            if (answerMatch) {
-                currentQuestion.correctAnswer = answerMatch[0].toUpperCase();
-            }
-        }
-        // Konu tespit et
-        else if (currentQuestion && (line.toLowerCase().includes('konu') || line.toLowerCase().includes('başlık') || line.toLowerCase().includes('chapter'))) {
-            currentQuestion.topic = line.split(':')[1]?.trim() || line;
-        }
-        // Açıklama ekle
-        else if (currentQuestion && currentQuestion.options.length === 4 && !line.match(/^(\d+)[.)]/)) {
-            if (currentQuestion.explanation === 'Çözüm için AI ipucunu kullan.') {
-                currentQuestion.explanation = line;
-            }
+        } else {
+            lineIndex++;
         }
     }
     
-    // Son soruyu ekle
-    if (currentQuestion && currentQuestion.options && currentQuestion.options.length === 4) {
+    // Save last question
+    if (currentQuestion && isValidQuestion(currentQuestion)) {
         questions.push(currentQuestion);
     }
     
-    // Soruları doğrula
-    const validQuestions = questions.filter(q => {
-        return q.text && q.text.length > 0 && 
-               q.options && q.options.length === 4 &&
-               ['A', 'B', 'C', 'D'].includes(q.correctAnswer);
-    });
+    console.log(`Advanced parser found: ${questions.length} questions`);
+    return questions;
+}
+
+// Generic Parser (finds any numbered items with A, B, C, D)
+function parseQuestionsGeneric(text) {
+    const questions = [];
     
-    console.log(`Toplam ${validQuestions.length} soru bulundu`);
-    return validQuestions;
+    // Find all sections that start with numbers
+    const numberPattern = /(\d+)\s*[.)]\s+([^]*?)(?=\d+\s*[.)]\s+|$)/g;
+    let match;
+    let questionNumber = 1;
+    
+    while ((match = numberPattern.exec(text)) !== null) {
+        const content = match[2].trim();
+        const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        if (lines.length >= 4) {
+            const question = {
+                id: questionNumber++,
+                text: lines[0],
+                options: [],
+                correctAnswer: 'A',
+                topic: 'Test Sorusu',
+                explanation: 'Çözüm için AI ipucunu kullan.'
+            };
+            
+            // Extract options
+            for (let i = 1; i < lines.length; i++) {
+                const optMatch = lines[i].match(/^([A-D])[.)]\s+(.+)/i);
+                if (optMatch) {
+                    question.options.push({
+                        letter: optMatch[1].toUpperCase(),
+                        text: optMatch[2]
+                    });
+                }
+            }
+            
+            if (question.options.length === 4) {
+                questions.push(question);
+            }
+        }
+    }
+    
+    console.log(`Generic parser found: ${questions.length} questions`);
+    return questions;
+}
+
+// Validate question
+function isValidQuestion(q) {
+    return q.text && 
+           q.text.trim().length > 5 && 
+           q.options && 
+           q.options.length === 4 &&
+           q.correctAnswer && 
+           ['A', 'B', 'C', 'D'].includes(q.correctAnswer);
 }
 
 // Load Questions from JSON
