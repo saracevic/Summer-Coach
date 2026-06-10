@@ -44,8 +44,8 @@ async function extractQuestionsFromPDF(file) {
         questions = parsePDFText(pdfText);
         
         if (questions.length === 0) {
-            alert('PDF\'den sorular çıkarılamadı. Lütfen format kontrol edin.');
-            loadDemoQuestions();
+            alert(`PDF'den sorular çıkarılamadı. Format kontrol edin.\n\nBeklenen Format:\n1.Soru metni\nA) Seçenek\nB) Seçenek\nC) Seçenek\nD) Seçenek\nCevap: A`);
+            console.log('Extracted text sample:', pdfText.substring(0, 500));
         } else {
             startQuiz();
         }
@@ -55,50 +55,84 @@ async function extractQuestionsFromPDF(file) {
     }
 }
 
-// Parse PDF Text to Questions
+// Parse PDF Text to Questions - IMPROVED VERSION
 function parsePDFText(text) {
-    // Format: "1.Soru metni\nA) Seçenek A\nB) Seçenek B\nC) Seçenek C\nD) Seçenek D\nCevap: A"
     const questions = [];
-    const questionPatterns = text.split(/\d+\.\s+(?=[A-ZÇĞİÖŞÜ])/i).slice(1);
-
-    questionPatterns.forEach((pattern, index) => {
-        const lines = pattern.split('\n').filter(line => line.trim());
+    
+    // Temizle ve satırları ayır
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    let currentQuestion = null;
+    let questionCounter = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         
-        if (lines.length >= 4) {
-            const questionText = lines[0].trim();
-            const options = [];
-            let answer = 'A';
-            let topic = 'Konu';
-
-            lines.forEach((line, i) => {
-                if (line.match(/^[A-D]\)/)) {
-                    const letter = line.charAt(0);
-                    const text = line.substring(3).trim();
-                    options.push({ letter, text });
-                }
-                if (line.toLowerCase().includes('cevap') || line.toLowerCase().includes('doğru')) {
-                    const match = line.match(/[A-D]/);
-                    if (match) answer = match[0];
-                }
-                if (line.toLowerCase().includes('konu') || line.toLowerCase().includes('başlık')) {
-                    topic = line.substring(line.indexOf(':') + 1).trim();
-                }
-            });
-
-            if (options.length === 4) {
-                questions.push({
-                    id: index + 1,
-                    text: questionText,
-                    options: options,
-                    correctAnswer: answer,
-                    topic: topic,
-                    explanation: 'Bu konuda çalışma yapınız.'
+        // Soru başlangıcını tespit et: "1.", "7.", "10." vb
+        const questionMatch = line.match(/^(\d+)[.)]\s+(.+)/);
+        
+        if (questionMatch) {
+            // Eğer önceki soru varsa ve 4 seçeneği varsa, kaydet
+            if (currentQuestion && currentQuestion.options && currentQuestion.options.length === 4) {
+                questions.push(currentQuestion);
+            }
+            
+            questionCounter++;
+            currentQuestion = {
+                id: questionCounter,
+                text: questionMatch[2].trim(),
+                options: [],
+                correctAnswer: 'A',
+                topic: 'Matematik',
+                explanation: 'Çözüm için AI ipucunu kullan.'
+            };
+        }
+        // Seçenek tespit et: "A)", "A)", "a)" vb
+        else if (currentQuestion && line.match(/^[A-Da-d][.)]\s+(.+)/)) {
+            const optionMatch = line.match(/^([A-Da-d])[.)]\s+(.+)/);
+            if (optionMatch) {
+                const letter = optionMatch[1].toUpperCase();
+                const text = optionMatch[2].trim();
+                
+                currentQuestion.options.push({
+                    letter: letter,
+                    text: text
                 });
             }
         }
+        // Cevap tespit et: "Cevap: A", "Doğru: C" vb
+        else if (currentQuestion && (line.toLowerCase().includes('cevap') || line.toLowerCase().includes('doğru') || line.toLowerCase().includes('answer'))) {
+            const answerMatch = line.match(/[A-D]/i);
+            if (answerMatch) {
+                currentQuestion.correctAnswer = answerMatch[0].toUpperCase();
+            }
+        }
+        // Konu tespit et
+        else if (currentQuestion && (line.toLowerCase().includes('konu') || line.toLowerCase().includes('başlık') || line.toLowerCase().includes('chapter'))) {
+            currentQuestion.topic = line.split(':')[1]?.trim() || line;
+        }
+        // Açıklama ekle
+        else if (currentQuestion && currentQuestion.options.length === 4 && !line.match(/^(\d+)[.)]/)) {
+            if (currentQuestion.explanation === 'Çözüm için AI ipucunu kullan.') {
+                currentQuestion.explanation = line;
+            }
+        }
+    }
+    
+    // Son soruyu ekle
+    if (currentQuestion && currentQuestion.options && currentQuestion.options.length === 4) {
+        questions.push(currentQuestion);
+    }
+    
+    // Soruları doğrula
+    const validQuestions = questions.filter(q => {
+        return q.text && q.text.length > 0 && 
+               q.options && q.options.length === 4 &&
+               ['A', 'B', 'C', 'D'].includes(q.correctAnswer);
     });
-
-    return questions.length > 0 ? questions : [];
+    
+    console.log(`Toplam ${validQuestions.length} soru bulundu`);
+    return validQuestions;
 }
 
 // Load Questions from JSON
@@ -124,7 +158,7 @@ function loadDemoQuestions() {
     questions = [
         {
             id: 1,
-            text: "Bir karenin bir kenarı 5 cm ise, çevresi kaç cm\'dir?",
+            text: "Bir karenin bir kenarı 5 cm ise, çevresi kaç cm'dir?",
             options: [
                 { letter: 'A', text: '10 cm' },
                 { letter: 'B', text: '15 cm' },
@@ -137,7 +171,7 @@ function loadDemoQuestions() {
         },
         {
             id: 2,
-            text: "Türkiye\'nin başkenti neresidir?",
+            text: "Türkiye'nin başkenti neresidir?",
             options: [
                 { letter: 'A', text: 'İstanbul' },
                 { letter: 'B', text: 'Ankara' },
@@ -145,8 +179,8 @@ function loadDemoQuestions() {
                 { letter: 'D', text: 'Bursa' }
             ],
             correctAnswer: 'B',
-            topic: 'Coğrafya - Türkiye\'nin Başkenti',
-            explanation: 'Ankara, 1923 yılından beri Türkiye\'nin başkenti olarak görev yapmaktadır.'
+            topic: 'Coğrafya - Türkiye'nin Başkenti',
+            explanation: 'Ankara, 1923 yılından beri Türkiye'nin başkenti olarak görev yapmaktadır.'
         },
         {
             id: 3,
@@ -163,7 +197,7 @@ function loadDemoQuestions() {
         },
         {
             id: 4,
-            text: "Bir dairenin yarıçapı 7 cm ise, alanı kaç cm²\'dir? (π ≈ 3.14)",
+            text: "Bir dairenin yarıçapı 7 cm ise, alanı kaç cm²'dir? (π ≈ 3.14)",
             options: [
                 { letter: 'A', text: '153.86 cm²' },
                 { letter: 'B', text: '142.2 cm²' },
