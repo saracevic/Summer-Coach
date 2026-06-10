@@ -91,8 +91,16 @@
         </section>
     </div>
 
-    <!-- Scripts -->
+    <!-- PDF.js Library - IMPORTANT: Must be loaded before app.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Set up PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
+    
+    <!-- Scripts -->
     <script src="ai-coach.js"></script>
     <script src="app.js"></script>
 </body>
